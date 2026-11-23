@@ -29,15 +29,10 @@ STREAKS_FILE = os.path.abspath("node_streaks.json")
 
 SOURCES = [
     ("igareck_mob", "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS_mobile.txt"),
+    ("igareck_wl_mob", "https://bitbucket.org/igareck/vpn-configs-for-russia/raw/main/Vless-Reality-White-Lists-Rus-Mobile.txt"),
     ("igareck_ss_trojan", "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_SS+All_RUS.txt"),
     ("myappvpn_reality", "https://raw.githubusercontent.com/indelingDanil/MyAppVPN-subs/output/reality.txt"),
-    ("zieng2_wl", "https://raw.githubusercontent.com/zieng2/wl/main/vless_universal.txt"),
-    ("aviamasters_ru", "https://raw.githubusercontent.com/aviamastersgh/vpn-free-russia/main/verified_configs.txt"),
-    ("avencores_26", "https://raw.githubusercontent.com/AvenCores/goida-vpn-configs/refs/heads/main/githubmirror/26.txt"),
-    ("avencores_24", "https://raw.githubusercontent.com/AvenCores/goida-vpn-configs/refs/heads/main/githubmirror/24.txt"),
-    ("delta_reality", "https://raw.githubusercontent.com/Delta-Kronecker/V2ray-Config/main/config/tcp-pass/reality.txt"),
     ("kort_clean", "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/main/githubmirror/clean/vless.txt"),
-    ("igareck_all", "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS.txt"),
 ]
 
 WHITELIST_SOURCES = [
@@ -136,7 +131,7 @@ def parse_vless(line: str, is_top150: bool = False):
         net = qs.get("type", "tcp").lower()
         if net == "raw":
             net = "tcp"
-        if sec != "reality" or net not in ("tcp", "grpc"):
+        if sec != "reality" or net not in ("tcp", "grpc", "xhttp"):
             return None
         pbk = qs.get("pbk", "").strip()
         if len(pbk) < 32:
@@ -173,8 +168,9 @@ def parse_vless(line: str, is_top150: bool = False):
                 "fp": fp,
                 "flow": flow,
                 "serviceName": qs.get("serviceName", ""),
-                "path": "/",
-                "wsHost": sni,
+                "path": qs.get("path", "/"),
+                "wsHost": qs.get("host", sni),
+                "xhttpMode": qs.get("mode", "auto"),
             },
         }
     except Exception:
@@ -240,6 +236,8 @@ def build_outbound(node, tag="proxy"):
         }
         if c["type"] == "grpc":
             stream["grpcSettings"] = {"serviceName": c["serviceName"]}
+        elif c["type"] == "xhttp":
+            stream["xhttpSettings"] = {"path": c.get("path", "/"), "host": c.get("wsHost", c["sni"]), "mode": c.get("xhttpMode", "auto")}
         user_obj = {"id": c["uuid"], "encryption": "none"}
         if c["flow"]:
             user_obj["flow"] = c["flow"]
