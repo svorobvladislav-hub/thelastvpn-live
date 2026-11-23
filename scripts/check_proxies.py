@@ -314,8 +314,8 @@ def verify_node_real_traffic(node):
         exit_cc = m.group(1) if m else ""
 
         # Check 3: Real HTTPS request #3 to Google (proves tunnel doesn't drop after 2 requests)
-        r3 = requests.get("https://www.google.com/generate_204", proxies=proxies, timeout=1.8)
-        if r3.status_code not in (200, 204):
+        r3 = requests.get("https://speed.cloudflare.com/__down?bytes=250000", proxies=proxies, timeout=5.0)
+        if r3.status_code != 200 or len(r3.content) < 200000:
             return None
 
         node["rttMs"] = rtt_ms
