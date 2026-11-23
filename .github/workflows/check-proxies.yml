@@ -1,0 +1,58 @@
+name: Check VPN Proxies (Real Xray-core)
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: check-proxies
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: pip install requests[socks] pysocks
+
+      - name: Download Xray-core
+        run: |
+          mkdir -p xray_bin
+          curl -sL https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
+          unzip -q xray.zip -d xray_bin
+          chmod +x xray_bin/xray
+
+      - name: Run real Xray traffic check
+        run: python3 scripts/check_proxies.py
+
+      - name: Commit verified pools and direct subscriptions
+        run: |
+          mkdir -p /tmp/pool_out
+          cp -f verified_pools.json sub.txt happ.json node_streaks.json /tmp/pool_out/ 2>/dev/null || true
+          git fetch origin main
+          git reset --hard origin/main
+          cp -f /tmp/pool_out/* . 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add verified_pools.json sub.txt happ.json node_streaks.json
+          git diff --staged --quiet || (git commit -m "chore: update verified proxy pools [skip ci]" && git push origin main)
+
+      - name: Purge jsDelivr CDN cache for instant updates
+        if: success()
+        run: |
+          curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/verified_pools.json" >/dev/null || true
+          curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/happ.json" >/dev/null || true
+          curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@main/sub.txt" >/dev/null || true
